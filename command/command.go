@@ -67,7 +67,6 @@ func DescribeRoom(w *world.World, room world.RoomID, out io.Writer) {
 		fmt.Fprintln(out, "It is pitch black. You cannot see anything.")
 		return
 	}
-	w.Rooms.Visited[room] = true
 	fmt.Fprintln(out, w.Rooms.Description[room])
 	writeItemList(w, room, out)
 	writeExitList(w, room, out)
@@ -202,11 +201,14 @@ func examine(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "Examine what?")
 		return
 	}
-	if world.IsDark(w, w.Player.Room) {
-		fmt.Fprintln(out, "It is too dark to make out any detail.")
-		return
+	id := world.FindItemInInventory(w, tok.Object)
+	if id == world.InvalidItem {
+		if world.IsDark(w, w.Player.Room) {
+			fmt.Fprintln(out, "It is too dark to make out any detail.")
+			return
+		}
+		id = world.FindItemInRoom(w, w.Player.Room, tok.Object)
 	}
-	id := world.FindItemReachable(w, tok.Object)
 	if id == world.InvalidItem {
 		fmt.Fprintln(out, "You don't see that here.")
 		return
@@ -219,11 +221,14 @@ func read(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "Read what?")
 		return
 	}
-	if world.IsDark(w, w.Player.Room) {
-		fmt.Fprintln(out, "It is too dark to read.")
-		return
+	id := world.FindItemInInventory(w, tok.Object)
+	if id == world.InvalidItem {
+		if world.IsDark(w, w.Player.Room) {
+			fmt.Fprintln(out, "It is too dark to read.")
+			return
+		}
+		id = world.FindItemInRoom(w, w.Player.Room, tok.Object)
 	}
-	id := world.FindItemReachable(w, tok.Object)
 	if id == world.InvalidItem {
 		fmt.Fprintln(out, "You don't see that here.")
 		return

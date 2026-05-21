@@ -31,6 +31,7 @@ func NewDemo() *World {
 		Description: "An oil lantern, its wick burning steady and low.",
 		Location:    kitchen,
 		Takeable:    true,
+		Lit:         true,
 	})
 	goldCoin := addItem(w, itemSpec{
 		Name:        "gold coin",
@@ -51,7 +52,7 @@ func NewDemo() *World {
 	addExitPair(w, foyer, North, library)
 	addExitPair(w, foyer, West, kitchen)
 	addExit(w, foyer, Down, cellar, Exit{Locked: true, KeyItem: brassKey})
-	addExit(w, cellar, Up, foyer, Exit{KeyItem: InvalidItem})
+	addExit(w, cellar, Up, foyer, Exit{})
 
 	w.Player.Room = foyer
 	w.GoalRoom = foyer
@@ -64,7 +65,6 @@ func addRoom(w *World, name, description string, dark bool) RoomID {
 	w.Rooms.Name = append(w.Rooms.Name, name)
 	w.Rooms.Description = append(w.Rooms.Description, description)
 	w.Rooms.Dark = append(w.Rooms.Dark, dark)
-	w.Rooms.Visited = append(w.Rooms.Visited, false)
 	return id
 }
 
@@ -76,6 +76,7 @@ type itemSpec struct {
 	Takeable    bool
 	Readable    bool
 	ReadText    string
+	Lit         bool
 }
 
 func addItem(w *World, spec itemSpec) ItemID {
@@ -87,6 +88,7 @@ func addItem(w *World, spec itemSpec) ItemID {
 	w.Items.Takeable = append(w.Items.Takeable, spec.Takeable)
 	w.Items.Readable = append(w.Items.Readable, spec.Readable)
 	w.Items.ReadText = append(w.Items.ReadText, spec.ReadText)
+	w.Items.Lit = append(w.Items.Lit, spec.Lit)
 	return id
 }
 

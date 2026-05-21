@@ -39,13 +39,13 @@ type Rooms struct {
 	Name        []string
 	Description []string
 	Dark        []bool
-	Visited     []bool
 }
 
 // Items is the item table in struct-of-arrays form. Location[id]
 // is the RoomID the item currently sits in; InventoryRoom means
 // it is carried by the player. Aliases[id] lists alternative
-// noun phrases the parser will accept.
+// noun phrases the parser will accept. Lit[id] is true when the
+// item dispels darkness while carried.
 type Items struct {
 	Name        []string
 	Description []string
@@ -54,6 +54,7 @@ type Items struct {
 	Takeable    []bool
 	Readable    []bool
 	ReadText    []string
+	Lit         []bool
 }
 
 // Exit is one directed edge in the room graph. Locked exits open
@@ -167,15 +168,6 @@ func FindItemInInventory(w *World, needle string) ItemID {
 	return FindItemInRoom(w, InventoryRoom, needle)
 }
 
-// FindItemReachable searches the player's inventory first, then
-// the current room.
-func FindItemReachable(w *World, needle string) ItemID {
-	if id := FindItemInInventory(w, needle); id != InvalidItem {
-		return id
-	}
-	return FindItemInRoom(w, w.Player.Room, needle)
-}
-
 func itemMatches(w *World, id ItemID, needle string) bool {
 	if w.Items.Name[id] == needle {
 		return true
@@ -210,13 +202,22 @@ func ExitsFrom(w *World, room RoomID) []Exit {
 	return out
 }
 
-// IsDark reports whether room is dark and the player has no lit
-// light source. Today any carried item named "lantern" counts.
+// IsDark reports whether room is dark and the player carries no
+// item flagged as a light source.
 func IsDark(w *World, room RoomID) bool {
 	if !w.Rooms.Dark[room] {
 		return false
 	}
-	return FindItemInInventory(w, "lantern") == InvalidItem
+	for index := range w.Items.Name {
+		id := ItemID(index)
+		if w.Items.Location[id] != InventoryRoom {
+			continue
+		}
+		if w.Items.Lit[id] {
+			return false
+		}
+	}
+	return true
 }
 
 // IsCarrying returns true if the named item is in the player's

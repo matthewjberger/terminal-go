@@ -76,3 +76,19 @@ func TestExamineUsesAliases(t *testing.T) {
 		t.Fatalf("examine key should describe the brass key, got:\n%s", out)
 	}
 }
+
+func TestExamineInventoryItemInTheDark(t *testing.T) {
+	w := world.NewDemo()
+	run(w, "north")
+	run(w, "take brass key")
+	run(w, "south")
+	run(w, "down")
+	out := run(w, "examine brass key")
+	if !strings.Contains(out, "brass") {
+		t.Fatalf("examining a carried item should work in the dark, got:\n%s", out)
+	}
+	out = run(w, "examine gold coin")
+	if !strings.Contains(out, "dark") {
+		t.Fatalf("examining a room item in the dark should be blocked, got:\n%s", out)
+	}
+}
