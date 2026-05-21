@@ -241,7 +241,7 @@ func read(w *world.World, tok parse.Token, out io.Writer) {
 }
 
 func save(w *world.World, tok parse.Token, out io.Writer) {
-	path := tok.Object
+	path := tok.RawObject
 	if path == "" {
 		path = defaultSavePath
 	}
@@ -259,7 +259,7 @@ func save(w *world.World, tok parse.Token, out io.Writer) {
 }
 
 func load(w *world.World, tok parse.Token, out io.Writer) {
-	path := tok.Object
+	path := tok.RawObject
 	if path == "" {
 		path = defaultSavePath
 	}
@@ -276,22 +276,26 @@ func load(w *world.World, tok parse.Token, out io.Writer) {
 	}
 	*w = *loaded
 	fmt.Fprintln(out, "Game restored.")
+	if w.Won {
+		fmt.Fprintln(out, "(This save is from a completed run.)")
+		return
+	}
 	DescribeRoom(w, w.Player.Room, out)
 }
 
 func help(out io.Writer) {
 	lines := []string{
 		"Verbs:",
-		"  look, l                       describe the current room",
-		"  go <dir>, <dir>               move (north/south/east/west/up/down, n/s/e/w/u/d)",
-		"  take <item>, get, pick up     pick something up",
-		"  drop <item>, put down         put something down",
-		"  inventory, i                  list what you're carrying",
-		"  examine <item>, x             look closely at something",
-		"  read <item>                   read writing on something",
-		"  save [file], load [file]      save or restore the game",
-		"  help, ?                       show this list",
-		"  quit, q                       leave the game",
+		"  look, l                            describe the current room",
+		"  go <dir>, <dir>                    move (north/south/east/west/up/down, n/s/e/w/u/d)",
+		"  take <item>, get, grab, pick up    pick something up",
+		"  drop <item>, put down              put something down",
+		"  inventory, i                       list what you're carrying",
+		"  examine <item>, x                  look closely at something",
+		"  read <item>                        read writing on something",
+		"  save [file], load [file]           save or restore the game",
+		"  help, ?                            show this list",
+		"  quit, q                            leave the game",
 	}
 	for _, line := range lines {
 		fmt.Fprintln(out, line)

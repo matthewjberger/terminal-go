@@ -75,3 +75,35 @@ func TestTokenizeTwoWordVerbs(t *testing.T) {
 		}
 	}
 }
+
+func TestTokenizeRawArgsPreserveCase(t *testing.T) {
+	got := parse.Tokenize("save MyGame.save")
+	if got.Verb != "save" {
+		t.Errorf("Verb = %q, want %q", got.Verb, "save")
+	}
+	if got.Object != "mygame.save" {
+		t.Errorf("Object = %q, want %q", got.Object, "mygame.save")
+	}
+	if got.RawObject != "MyGame.save" {
+		t.Errorf("RawObject = %q, want %q", got.RawObject, "MyGame.save")
+	}
+}
+
+func TestTokenizeGrabIsTake(t *testing.T) {
+	got := parse.Tokenize("grab the coin")
+	if got.Verb != "take" {
+		t.Errorf("Verb = %q, want %q", got.Verb, "take")
+	}
+	if got.Object != "coin" {
+		t.Errorf("Object = %q, want %q", got.Object, "coin")
+	}
+}
+
+func TestTokenizeBarePickAndPutAreNotAliased(t *testing.T) {
+	if got := parse.Tokenize("pick coin"); got.Verb != "pick" {
+		t.Errorf("'pick coin' Verb = %q, want %q (single-word pick should not normalize)", got.Verb, "pick")
+	}
+	if got := parse.Tokenize("put coin"); got.Verb != "put" {
+		t.Errorf("'put coin' Verb = %q, want %q (single-word put should not normalize)", got.Verb, "put")
+	}
+}

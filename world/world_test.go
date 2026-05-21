@@ -104,6 +104,9 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 		t.Fatalf("Decode: %v", err)
 	}
 
+	if restored.Version != world.SaveVersion {
+		t.Errorf("Version = %d, want %d", restored.Version, world.SaveVersion)
+	}
 	if restored.Player.Room != w.Player.Room {
 		t.Errorf("Player.Room = %d, want %d", restored.Player.Room, w.Player.Room)
 	}
@@ -115,6 +118,19 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	}
 	if len(restored.Items.AliasStart) != len(w.Items.AliasStart) {
 		t.Errorf("AliasStart length = %d, want %d", len(restored.Items.AliasStart), len(w.Items.AliasStart))
+	}
+}
+
+func TestDecodeRejectsVersionMismatch(t *testing.T) {
+	w := world.NewDemo()
+	w.Version = world.SaveVersion + 99
+
+	var buf bytes.Buffer
+	if err := world.Encode(w, &buf); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if _, err := world.Decode(&buf); err == nil {
+		t.Fatal("Decode should reject a wrong-version blob")
 	}
 }
 

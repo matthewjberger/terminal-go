@@ -1,7 +1,7 @@
 package world
 
 func NewDemo() *World {
-	w := &World{}
+	w := &World{Version: SaveVersion}
 
 	entryway := addRoom(w, "Entryway",
 		"A high entry hall paved in chipped slate. A shaft of light filters down through a cracked skylight far above. A wide arch opens to the north.",

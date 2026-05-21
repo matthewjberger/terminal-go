@@ -4,30 +4,45 @@ package parse
 
 import "strings"
 
+// Token is the result of parsing one input line. Verb is the
+// normalized lowercased canonical verb. Args / Object are
+// lowercased for matching against item names. RawArgs /
+// RawObject preserve the original case for things like
+// filenames passed to save/load.
 type Token struct {
-	Verb   string
-	Args   []string
-	Object string
+	Verb      string
+	Args      []string
+	Object    string
+	RawArgs   []string
+	RawObject string
 }
 
 func Tokenize(line string) Token {
-	fields := strings.Fields(strings.ToLower(line))
-	if len(fields) == 0 {
+	raw := strings.Fields(line)
+	if len(raw) == 0 {
 		return Token{}
 	}
-	verb, consumed := normalizeVerb(fields)
+	lower := make([]string, len(raw))
+	for i, word := range raw {
+		lower[i] = strings.ToLower(word)
+	}
+	verb, consumed := normalizeVerb(lower)
 
-	args := make([]string, 0, len(fields)-consumed)
-	for _, word := range fields[consumed:] {
-		if isFiller(word) {
+	args := make([]string, 0, len(raw)-consumed)
+	rawArgs := make([]string, 0, len(raw)-consumed)
+	for i := consumed; i < len(raw); i++ {
+		if isFiller(lower[i]) {
 			continue
 		}
-		args = append(args, word)
+		args = append(args, lower[i])
+		rawArgs = append(rawArgs, raw[i])
 	}
 	return Token{
-		Verb:   verb,
-		Args:   args,
-		Object: strings.Join(args, " "),
+		Verb:      verb,
+		Args:      args,
+		Object:    strings.Join(args, " "),
+		RawArgs:   rawArgs,
+		RawObject: strings.Join(rawArgs, " "),
 	}
 }
 
@@ -61,10 +76,8 @@ func normalizeVerb(fields []string) (verb string, consumed int) {
 		return "down", 1
 	case "g":
 		return "go", 1
-	case "get", "grab", "pick":
+	case "get", "grab":
 		return "take", 1
-	case "put":
-		return "drop", 1
 	case "q":
 		return "quit", 1
 	case "h", "?":

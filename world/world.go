@@ -15,6 +15,10 @@ const (
 	InvalidItem ItemID = -1
 )
 
+// SaveVersion is the current save-format version. Decode rejects
+// blobs whose Version field does not match.
+const SaveVersion int32 = 1
+
 type Direction int8
 
 const (
@@ -72,6 +76,8 @@ type Player struct {
 }
 
 type World struct {
+	Version int32
+
 	Rooms  Rooms
 	Items  Items
 	Exits  []Exit

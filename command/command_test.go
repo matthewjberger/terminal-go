@@ -185,3 +185,53 @@ func TestSaveAndLoadCommands(t *testing.T) {
 		t.Fatalf("loaded world should place player in library, got %s", w2.Rooms.Name[w2.Player.Room])
 	}
 }
+
+func TestSavePreservesFilenameCase(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "MixedCase.Save")
+
+	w := world.NewDemo()
+	out := run(w, "save "+path)
+	if !strings.Contains(out, path) {
+		t.Errorf("save output should include the original-case path %q, got:\n%s", path, out)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, m := range matches {
+		if filepath.Base(m) == "MixedCase.Save" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected file named MixedCase.Save, found: %v", matches)
+	}
+}
+
+func TestLoadOfCompletedRunReportsIt(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "winning.save")
+
+	w := world.NewDemo()
+	w.Won = true
+	if err := writeSave(w, path); err != nil {
+		t.Fatal(err)
+	}
+
+	w2 := world.NewDemo()
+	out := run(w2, "load "+path)
+	if !strings.Contains(out, "completed") {
+		t.Fatalf("loading a completed save should acknowledge it, got:\n%s", out)
+	}
+}
+
+func writeSave(w *world.World, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return world.Encode(w, file)
+}
