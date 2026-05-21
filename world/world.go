@@ -6,16 +6,14 @@
 // methods are not used for game logic.
 package world
 
-// RoomID indexes every Rooms.* slice. Two negative sentinels are
-// reserved: InvalidRoom means "no room", InventoryRoom means "the
-// player is carrying this item".
+// RoomID indexes every Rooms.* slice. The negative sentinel
+// InventoryRoom means "the player is carrying this item".
 type RoomID int32
 
 // ItemID indexes every Items.* slice. InvalidItem means "no item".
 type ItemID int32
 
 const (
-	InvalidRoom   RoomID = -1
 	InventoryRoom RoomID = -2
 
 	InvalidItem ItemID = -1
@@ -45,7 +43,8 @@ type Rooms struct {
 // is the RoomID the item currently sits in; InventoryRoom means
 // it is carried by the player. Aliases[id] lists alternative
 // noun phrases the parser will accept. Lit[id] is true when the
-// item dispels darkness while carried.
+// item dispels darkness in the player's current room or while
+// carried.
 type Items struct {
 	Name        []string
 	Description []string
@@ -202,15 +201,16 @@ func ExitsFrom(w *World, room RoomID) []Exit {
 	return out
 }
 
-// IsDark reports whether room is dark and the player carries no
-// item flagged as a light source.
+// IsDark reports whether room is dark and no lit item is present
+// in the player's inventory or in the room itself.
 func IsDark(w *World, room RoomID) bool {
 	if !w.Rooms.Dark[room] {
 		return false
 	}
 	for index := range w.Items.Name {
 		id := ItemID(index)
-		if w.Items.Location[id] != InventoryRoom {
+		loc := w.Items.Location[id]
+		if loc != InventoryRoom && loc != room {
 			continue
 		}
 		if w.Items.Lit[id] {

@@ -54,3 +54,24 @@ func TestTokenizeObjectJoinsArgs(t *testing.T) {
 		t.Errorf("Object = %q, want %q", got.Object, "brass key")
 	}
 }
+
+func TestTokenizeTwoWordVerbs(t *testing.T) {
+	cases := []struct {
+		input  string
+		verb   string
+		object string
+	}{
+		{"pick up the brass key", "take", "brass key"},
+		{"put down the lantern", "drop", "lantern"},
+		{"pick up coin", "take", "coin"},
+	}
+	for _, c := range cases {
+		got := parse.Tokenize(c.input)
+		if got.Verb != c.verb {
+			t.Errorf("Tokenize(%q).Verb = %q, want %q", c.input, got.Verb, c.verb)
+		}
+		if got.Object != c.object {
+			t.Errorf("Tokenize(%q).Object = %q, want %q", c.input, got.Object, c.object)
+		}
+	}
+}

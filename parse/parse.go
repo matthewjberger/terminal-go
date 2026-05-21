@@ -16,17 +16,18 @@ type Token struct {
 }
 
 // Tokenize lowercases the input, splits on whitespace, normalizes
-// the verb, and strips filler words ("a", "an", "the", "at",
-// "on", "in", "to") from the remaining arguments.
+// the verb (including two-word phrases like "pick up" and "put
+// down"), and strips filler words ("a", "an", "the", "at", "on",
+// "in", "to") from the remaining arguments.
 func Tokenize(line string) Token {
 	fields := strings.Fields(strings.ToLower(line))
 	if len(fields) == 0 {
 		return Token{}
 	}
-	verb := normalizeVerb(fields[0])
+	verb, consumed := normalizeVerb(fields)
 
-	args := make([]string, 0, len(fields)-1)
-	for _, word := range fields[1:] {
+	args := make([]string, 0, len(fields)-consumed)
+	for _, word := range fields[consumed:] {
 		if isFiller(word) {
 			continue
 		}
@@ -39,38 +40,46 @@ func Tokenize(line string) Token {
 	}
 }
 
-func normalizeVerb(word string) string {
-	switch word {
-	case "l":
-		return "look"
-	case "i", "inv":
-		return "inventory"
-	case "x":
-		return "examine"
-	case "n":
-		return "north"
-	case "s":
-		return "south"
-	case "e":
-		return "east"
-	case "w":
-		return "west"
-	case "u":
-		return "up"
-	case "d":
-		return "down"
-	case "g":
-		return "go"
-	case "get", "grab", "pick":
-		return "take"
-	case "put":
-		return "drop"
-	case "q":
-		return "quit"
-	case "h", "?":
-		return "help"
+func normalizeVerb(fields []string) (verb string, consumed int) {
+	if len(fields) >= 2 {
+		switch fields[0] + " " + fields[1] {
+		case "pick up":
+			return "take", 2
+		case "put down":
+			return "drop", 2
+		}
 	}
-	return word
+	switch fields[0] {
+	case "l":
+		return "look", 1
+	case "i", "inv":
+		return "inventory", 1
+	case "x":
+		return "examine", 1
+	case "n":
+		return "north", 1
+	case "s":
+		return "south", 1
+	case "e":
+		return "east", 1
+	case "w":
+		return "west", 1
+	case "u":
+		return "up", 1
+	case "d":
+		return "down", 1
+	case "g":
+		return "go", 1
+	case "get", "grab", "pick":
+		return "take", 1
+	case "put":
+		return "drop", 1
+	case "q":
+		return "quit", 1
+	case "h", "?":
+		return "help", 1
+	}
+	return fields[0], 1
 }
 
 func isFiller(word string) bool {

@@ -92,3 +92,36 @@ func TestExamineInventoryItemInTheDark(t *testing.T) {
 		t.Fatalf("examining a room item in the dark should be blocked, got:\n%s", out)
 	}
 }
+
+func TestDroppedLanternStillLightsTheRoom(t *testing.T) {
+	w := world.NewDemo()
+	run(w, "north")
+	run(w, "take brass key")
+	run(w, "south")
+	run(w, "west")
+	run(w, "take lantern")
+	run(w, "east")
+	run(w, "down")
+	run(w, "drop lantern")
+	out := run(w, "take gold coin")
+	if !world.IsCarrying(w, "gold coin") {
+		t.Fatalf("taking the coin should still work with the lantern on the floor, got:\n%s", out)
+	}
+	out = run(w, "take lantern")
+	if !world.IsCarrying(w, "lantern") {
+		t.Fatalf("taking the lantern back should work; got:\n%s", out)
+	}
+}
+
+func TestPickUpAndPutDownAliases(t *testing.T) {
+	w := world.NewDemo()
+	run(w, "north")
+	run(w, "pick up brass key")
+	if !world.IsCarrying(w, "brass key") {
+		t.Fatal("pick up brass key should have taken the brass key")
+	}
+	run(w, "put down brass key")
+	if world.IsCarrying(w, "brass key") {
+		t.Fatal("put down brass key should have dropped the brass key")
+	}
+}

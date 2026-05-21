@@ -51,8 +51,8 @@ func NewDemo() *World {
 
 	addExitPair(w, foyer, North, library)
 	addExitPair(w, foyer, West, kitchen)
-	addExit(w, foyer, Down, cellar, Exit{Locked: true, KeyItem: brassKey})
-	addExit(w, cellar, Up, foyer, Exit{})
+	addLockedExit(w, foyer, Down, cellar, brassKey)
+	addExit(w, cellar, Up, foyer)
 
 	w.Player.Room = foyer
 	w.GoalRoom = foyer
@@ -92,17 +92,26 @@ func addItem(w *World, spec itemSpec) ItemID {
 	return id
 }
 
-func addExit(w *World, from RoomID, dir Direction, to RoomID, modifiers Exit) {
-	modifiers.From = from
-	modifiers.Dir = dir
-	modifiers.To = to
-	if !modifiers.Locked {
-		modifiers.KeyItem = InvalidItem
-	}
-	w.Exits = append(w.Exits, modifiers)
+func addExit(w *World, from RoomID, dir Direction, to RoomID) {
+	w.Exits = append(w.Exits, Exit{
+		From:    from,
+		Dir:     dir,
+		To:      to,
+		KeyItem: InvalidItem,
+	})
+}
+
+func addLockedExit(w *World, from RoomID, dir Direction, to RoomID, key ItemID) {
+	w.Exits = append(w.Exits, Exit{
+		From:    from,
+		Dir:     dir,
+		To:      to,
+		Locked:  true,
+		KeyItem: key,
+	})
 }
 
 func addExitPair(w *World, a RoomID, dir Direction, b RoomID) {
-	addExit(w, a, dir, b, Exit{})
-	addExit(w, b, Opposite(dir), a, Exit{})
+	addExit(w, a, dir, b)
+	addExit(w, b, Opposite(dir), a)
 }

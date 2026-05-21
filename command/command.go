@@ -243,15 +243,15 @@ func read(w *world.World, tok parse.Token, out io.Writer) {
 func help(out io.Writer) {
 	lines := []string{
 		"Verbs:",
-		"  look, l                  describe the current room",
-		"  go <dir>, <dir>          move (north/south/east/west/up/down, n/s/e/w/u/d)",
-		"  take <item>, get <item>  pick something up",
-		"  drop <item>              put something down",
-		"  inventory, i             list what you're carrying",
-		"  examine <item>, x        look closely at something",
-		"  read <item>              read writing on something",
-		"  help, ?                  show this list",
-		"  quit, q                  leave the game",
+		"  look, l                     describe the current room",
+		"  go <dir>, <dir>             move (north/south/east/west/up/down, n/s/e/w/u/d)",
+		"  take <item>, get, pick up   pick something up",
+		"  drop <item>, put down       put something down",
+		"  inventory, i                list what you're carrying",
+		"  examine <item>, x           look closely at something",
+		"  read <item>                 read writing on something",
+		"  help, ?                     show this list",
+		"  quit, q                     leave the game",
 	}
 	for _, line := range lines {
 		fmt.Fprintln(out, line)
