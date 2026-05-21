@@ -1,16 +1,12 @@
 // Package world holds the game state and the queries over it.
-//
-// The world is a single [World] value with parallel-array tables
-// keyed by typed [RoomID] / [ItemID] indices. Mutation lives in
-// the free functions in this package and in package command;
-// methods are not used for game logic.
 package world
 
-// RoomID indexes every Rooms.* slice. The negative sentinel
-// InventoryRoom means "the player is carrying this item".
+// RoomID indexes Rooms.* slices. The sentinel InventoryRoom is
+// used as an item location to mean "carried by the player".
 type RoomID int32
 
-// ItemID indexes every Items.* slice. InvalidItem means "no item".
+// ItemID indexes Items.* slices. InvalidItem is the "no item"
+// sentinel.
 type ItemID int32
 
 const (
@@ -19,7 +15,6 @@ const (
 	InvalidItem ItemID = -1
 )
 
-// Direction is one of the six exit directions.
 type Direction int8
 
 const (
@@ -31,33 +26,39 @@ const (
 	Down
 )
 
-// Rooms is the room table in struct-of-arrays form. Every slice
-// has the same length; a RoomID is a valid index into all of them.
+type RoomTag uint8
+
+const (
+	RoomDark RoomTag = 1 << iota
+)
+
+type ItemTag uint16
+
+const (
+	ItemTakeable ItemTag = 1 << iota
+	ItemReadable
+	ItemLit
+)
+
 type Rooms struct {
 	Name        []string
 	Description []string
-	Dark        []bool
+	Tags        []RoomTag
 }
 
-// Items is the item table in struct-of-arrays form. Location[id]
-// is the RoomID the item currently sits in; InventoryRoom means
-// it is carried by the player. Aliases[id] lists alternative
-// noun phrases the parser will accept. Lit[id] is true when the
-// item dispels darkness in the player's current room or while
-// carried.
+// Items holds the item table. AliasStart has length len(Name)+1
+// so item id's aliases are AliasFlat[AliasStart[id]:AliasStart[id+1]].
 type Items struct {
 	Name        []string
 	Description []string
-	Aliases     [][]string
 	Location    []RoomID
-	Takeable    []bool
-	Readable    []bool
+	Tags        []ItemTag
 	ReadText    []string
-	Lit         []bool
+
+	AliasFlat  []string
+	AliasStart []int32
 }
 
-// Exit is one directed edge in the room graph. Locked exits open
-// when the player presents KeyItem.
 type Exit struct {
 	From    RoomID
 	Dir     Direction
@@ -66,13 +67,10 @@ type Exit struct {
 	KeyItem ItemID
 }
 
-// Player holds the per-player state. Inventory is derived from
-// Items.Location == InventoryRoom, not stored here.
 type Player struct {
 	Room RoomID
 }
 
-// World is the single owner of all game state.
 type World struct {
 	Rooms  Rooms
 	Items  Items
@@ -86,9 +84,27 @@ type World struct {
 	Won  bool
 }
 
-// DirectionFromWord parses a direction word or single-letter
-// abbreviation. Recognized: north/n, south/s, east/e, west/w,
-// up/u, down/d.
+func RoomHasTag(w *World, room RoomID, tag RoomTag) bool {
+	if room < 0 || int(room) >= len(w.Rooms.Tags) {
+		return false
+	}
+	return w.Rooms.Tags[room]&tag != 0
+}
+
+func ItemHasTag(w *World, item ItemID, tag ItemTag) bool {
+	if item < 0 || int(item) >= len(w.Items.Tags) {
+		return false
+	}
+	return w.Items.Tags[item]&tag != 0
+}
+
+func ItemAliases(w *World, item ItemID) []string {
+	if item < 0 || int(item)+1 >= len(w.Items.AliasStart) {
+		return nil
+	}
+	return w.Items.AliasFlat[w.Items.AliasStart[item]:w.Items.AliasStart[item+1]]
+}
+
 func DirectionFromWord(word string) (Direction, bool) {
 	switch word {
 	case "n", "north":
@@ -107,7 +123,6 @@ func DirectionFromWord(word string) (Direction, bool) {
 	return 0, false
 }
 
-// DirectionName returns the canonical lowercase name for d.
 func DirectionName(d Direction) string {
 	switch d {
 	case North:
@@ -126,7 +141,6 @@ func DirectionName(d Direction) string {
 	return "?"
 }
 
-// Opposite returns the reverse direction.
 func Opposite(d Direction) Direction {
 	switch d {
 	case North:
@@ -145,9 +159,8 @@ func Opposite(d Direction) Direction {
 	return d
 }
 
-// FindItemInRoom returns the first item in room whose name or any
-// alias equals needle (assumed already lowercased and trimmed),
-// or InvalidItem.
+// FindItemInRoom returns the first item in room matching needle by
+// name or alias, or InvalidItem. needle is assumed lowercased.
 func FindItemInRoom(w *World, room RoomID, needle string) ItemID {
 	for index := range w.Items.Name {
 		id := ItemID(index)
@@ -161,8 +174,6 @@ func FindItemInRoom(w *World, room RoomID, needle string) ItemID {
 	return InvalidItem
 }
 
-// FindItemInInventory returns the first carried item matching
-// needle, or InvalidItem.
 func FindItemInInventory(w *World, needle string) ItemID {
 	return FindItemInRoom(w, InventoryRoom, needle)
 }
@@ -171,7 +182,7 @@ func itemMatches(w *World, id ItemID, needle string) bool {
 	if w.Items.Name[id] == needle {
 		return true
 	}
-	for _, alias := range w.Items.Aliases[id] {
+	for _, alias := range ItemAliases(w, id) {
 		if alias == needle {
 			return true
 		}
@@ -179,8 +190,8 @@ func itemMatches(w *World, id ItemID, needle string) bool {
 	return false
 }
 
-// ExitFrom returns the exit out of room in direction dir, along
-// with its index in w.Exits so callers can flip Locked in place.
+// ExitFrom returns the exit out of room in dir along with its
+// index in w.Exits so callers can flip Locked in place.
 func ExitFrom(w *World, room RoomID, dir Direction) (Exit, int, bool) {
 	for index, exit := range w.Exits {
 		if exit.From == room && exit.Dir == dir {
@@ -190,7 +201,6 @@ func ExitFrom(w *World, room RoomID, dir Direction) (Exit, int, bool) {
 	return Exit{}, -1, false
 }
 
-// ExitsFrom returns every exit out of room.
 func ExitsFrom(w *World, room RoomID) []Exit {
 	var out []Exit
 	for _, exit := range w.Exits {
@@ -201,10 +211,10 @@ func ExitsFrom(w *World, room RoomID) []Exit {
 	return out
 }
 
-// IsDark reports whether room is dark and no lit item is present
-// in the player's inventory or in the room itself.
+// IsDark assumes room is the player's current room; the inventory
+// check is meaningless otherwise.
 func IsDark(w *World, room RoomID) bool {
-	if !w.Rooms.Dark[room] {
+	if !RoomHasTag(w, room, RoomDark) {
 		return false
 	}
 	for index := range w.Items.Name {
@@ -213,15 +223,13 @@ func IsDark(w *World, room RoomID) bool {
 		if loc != InventoryRoom && loc != room {
 			continue
 		}
-		if w.Items.Lit[id] {
+		if ItemHasTag(w, id, ItemLit) {
 			return false
 		}
 	}
 	return true
 }
 
-// IsCarrying returns true if the named item is in the player's
-// inventory.
 func IsCarrying(w *World, needle string) bool {
 	return FindItemInInventory(w, needle) != InvalidItem
 }

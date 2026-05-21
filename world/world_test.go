@@ -1,6 +1,7 @@
 package world_test
 
 import (
+	"bytes"
 	"testing"
 
 	"terminal-go/world"
@@ -9,14 +10,14 @@ import (
 func TestNewDemoShape(t *testing.T) {
 	w := world.NewDemo()
 
-	if got := len(w.Rooms.Name); got != 4 {
-		t.Fatalf("rooms = %d, want 4", got)
+	if got := len(w.Rooms.Name); got != 6 {
+		t.Fatalf("rooms = %d, want 6", got)
 	}
-	if got := len(w.Items.Name); got != 4 {
-		t.Fatalf("items = %d, want 4", got)
+	if got := len(w.Items.Name); got != 6 {
+		t.Fatalf("items = %d, want 6", got)
 	}
 	if w.Player.Room != w.GoalRoom {
-		t.Fatalf("player should start in the goal room")
+		t.Fatal("player should start in the goal room")
 	}
 
 	for index, location := range w.Items.Location {
@@ -26,6 +27,10 @@ func TestNewDemoShape(t *testing.T) {
 		if int(location) < 0 || int(location) >= len(w.Rooms.Name) {
 			t.Fatalf("item %d has invalid location %d", index, location)
 		}
+	}
+
+	if want := len(w.Items.Name) + 1; len(w.Items.AliasStart) != want {
+		t.Fatalf("AliasStart length = %d, want %d", len(w.Items.AliasStart), want)
 	}
 
 	for index, exit := range w.Exits {
@@ -38,65 +43,88 @@ func TestNewDemoShape(t *testing.T) {
 	}
 }
 
-func TestDirectionFromWord(t *testing.T) {
-	cases := map[string]world.Direction{
-		"n":     world.North,
-		"north": world.North,
-		"s":     world.South,
-		"south": world.South,
-		"e":     world.East,
-		"east":  world.East,
-		"w":     world.West,
-		"west":  world.West,
-		"u":     world.Up,
-		"up":    world.Up,
-		"d":     world.Down,
-		"down":  world.Down,
-	}
-	for word, want := range cases {
-		got, ok := world.DirectionFromWord(word)
-		if !ok {
-			t.Errorf("DirectionFromWord(%q) ok = false", word)
-			continue
-		}
-		if got != want {
-			t.Errorf("DirectionFromWord(%q) = %v, want %v", word, got, want)
-		}
-	}
-	if _, ok := world.DirectionFromWord("nowhere"); ok {
-		t.Errorf("DirectionFromWord(%q) should fail", "nowhere")
-	}
-}
-
-func TestIsDarkRequiresLantern(t *testing.T) {
+func TestItemTagsCombine(t *testing.T) {
 	w := world.NewDemo()
-	cellar := world.RoomID(-1)
-	for index, name := range w.Rooms.Name {
-		if name == "Cellar" {
-			cellar = world.RoomID(index)
-		}
-	}
-	if cellar < 0 {
-		t.Fatal("demo is missing the Cellar room")
-	}
-
-	if !world.IsDark(w, cellar) {
-		t.Fatal("cellar should be dark without a lantern")
-	}
-
-	lantern := world.FindItemInRoom(w, world.RoomID(2), "lantern")
-	if lantern == world.InvalidItem {
-		for index := range w.Items.Name {
-			if w.Items.Name[index] == "lantern" {
-				lantern = world.ItemID(index)
-			}
-		}
-	}
+	lantern := world.FindItemInRoom(w, roomByName(t, w, "Kitchen"), "lantern")
 	if lantern == world.InvalidItem {
 		t.Fatal("demo is missing the lantern item")
 	}
-	w.Items.Location[lantern] = world.InventoryRoom
-	if world.IsDark(w, cellar) {
-		t.Fatal("cellar should be lit when carrying the lantern")
+	if !world.ItemHasTag(w, lantern, world.ItemTakeable) {
+		t.Error("lantern should be takeable")
 	}
+	if !world.ItemHasTag(w, lantern, world.ItemLit) {
+		t.Error("lantern should be lit")
+	}
+	if world.ItemHasTag(w, lantern, world.ItemReadable) {
+		t.Error("lantern should not be readable")
+	}
+}
+
+func TestItemAliasesLookup(t *testing.T) {
+	w := world.NewDemo()
+	for index, name := range w.Items.Name {
+		id := world.ItemID(index)
+		aliases := world.ItemAliases(w, id)
+		if name == "plaque" {
+			if len(aliases) != 2 || aliases[0] != "sign" || aliases[1] != "wooden plaque" {
+				t.Errorf("plaque aliases = %v, want [sign, wooden plaque]", aliases)
+			}
+		}
+		if name == "brass key" {
+			if len(aliases) != 2 || aliases[0] != "key" || aliases[1] != "brass" {
+				t.Errorf("brass key aliases = %v, want [key, brass]", aliases)
+			}
+		}
+	}
+}
+
+func TestIsDarkOutOfBoundsRoom(t *testing.T) {
+	w := world.NewDemo()
+	if world.IsDark(w, world.InventoryRoom) {
+		t.Fatal("IsDark on InventoryRoom should return false, not panic")
+	}
+	if world.IsDark(w, world.RoomID(999)) {
+		t.Fatal("IsDark on out-of-bounds room should return false")
+	}
+}
+
+func TestSaveLoadRoundtrip(t *testing.T) {
+	w := world.NewDemo()
+
+	lantern := world.FindItemInRoom(w, roomByName(t, w, "Kitchen"), "lantern")
+	w.Items.Location[lantern] = world.InventoryRoom
+	w.Player.Room = roomByName(t, w, "Cellar")
+
+	var buf bytes.Buffer
+	if err := world.Encode(w, &buf); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	restored, err := world.Decode(&buf)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+
+	if restored.Player.Room != w.Player.Room {
+		t.Errorf("Player.Room = %d, want %d", restored.Player.Room, w.Player.Room)
+	}
+	if restored.Items.Location[lantern] != world.InventoryRoom {
+		t.Error("lantern location lost in save/load")
+	}
+	if !world.ItemHasTag(restored, lantern, world.ItemLit) {
+		t.Error("lantern lit tag lost in save/load")
+	}
+	if len(restored.Items.AliasStart) != len(w.Items.AliasStart) {
+		t.Errorf("AliasStart length = %d, want %d", len(restored.Items.AliasStart), len(w.Items.AliasStart))
+	}
+}
+
+func roomByName(t *testing.T, w *world.World, name string) world.RoomID {
+	t.Helper()
+	for index, n := range w.Rooms.Name {
+		if n == name {
+			return world.RoomID(index)
+		}
+	}
+	t.Fatalf("room %q not found", name)
+	return -1
 }

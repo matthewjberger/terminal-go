@@ -5,6 +5,7 @@ package command
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -12,10 +13,8 @@ import (
 	"terminal-go/world"
 )
 
-// Run dispatches a parsed token to its handler. Unknown verbs
-// print a short fallback. Movement verbs (the six directions)
-// are dispatched directly here so the player can type a bare
-// direction word with no "go".
+const defaultSavePath = "zork.save"
+
 func Run(w *world.World, tok parse.Token, out io.Writer) {
 	if tok.Verb == "" {
 		return
@@ -44,6 +43,10 @@ func Run(w *world.World, tok parse.Token, out io.Writer) {
 		examine(w, tok, out)
 	case "read":
 		read(w, tok, out)
+	case "save":
+		save(w, tok, out)
+	case "load":
+		load(w, tok, out)
 	case "help":
 		help(out)
 	case "quit", "exit":
@@ -55,9 +58,6 @@ func Run(w *world.World, tok parse.Token, out io.Writer) {
 	checkWin(w, out)
 }
 
-// DescribeRoom prints the room name, the description (if the
-// room is lit from the player's perspective), the visible items,
-// and the available exits. Marks the room visited.
 func DescribeRoom(w *world.World, room world.RoomID, out io.Writer) {
 	name := w.Rooms.Name[room]
 	fmt.Fprintln(out)
@@ -159,7 +159,7 @@ func take(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "You don't see that here.")
 		return
 	}
-	if !w.Items.Takeable[id] {
+	if !world.ItemHasTag(w, id, world.ItemTakeable) {
 		fmt.Fprintf(out, "You can't take the %s.\n", w.Items.Name[id])
 		return
 	}
@@ -233,25 +233,65 @@ func read(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "You don't see that here.")
 		return
 	}
-	if !w.Items.Readable[id] {
+	if !world.ItemHasTag(w, id, world.ItemReadable) {
 		fmt.Fprintf(out, "There is nothing to read on the %s.\n", w.Items.Name[id])
 		return
 	}
 	fmt.Fprintln(out, w.Items.ReadText[id])
 }
 
+func save(w *world.World, tok parse.Token, out io.Writer) {
+	path := tok.Object
+	if path == "" {
+		path = defaultSavePath
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Fprintf(out, "Couldn't save: %v\n", err)
+		return
+	}
+	defer file.Close()
+	if err := world.Encode(w, file); err != nil {
+		fmt.Fprintf(out, "Couldn't save: %v\n", err)
+		return
+	}
+	fmt.Fprintf(out, "Game saved to %s.\n", path)
+}
+
+func load(w *world.World, tok parse.Token, out io.Writer) {
+	path := tok.Object
+	if path == "" {
+		path = defaultSavePath
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Fprintf(out, "Couldn't load: %v\n", err)
+		return
+	}
+	defer file.Close()
+	loaded, err := world.Decode(file)
+	if err != nil {
+		fmt.Fprintf(out, "Couldn't load: %v\n", err)
+		return
+	}
+	*w = *loaded
+	fmt.Fprintln(out, "Game restored.")
+	DescribeRoom(w, w.Player.Room, out)
+}
+
 func help(out io.Writer) {
 	lines := []string{
 		"Verbs:",
-		"  look, l                     describe the current room",
-		"  go <dir>, <dir>             move (north/south/east/west/up/down, n/s/e/w/u/d)",
-		"  take <item>, get, pick up   pick something up",
-		"  drop <item>, put down       put something down",
-		"  inventory, i                list what you're carrying",
-		"  examine <item>, x           look closely at something",
-		"  read <item>                 read writing on something",
-		"  help, ?                     show this list",
-		"  quit, q                     leave the game",
+		"  look, l                       describe the current room",
+		"  go <dir>, <dir>               move (north/south/east/west/up/down, n/s/e/w/u/d)",
+		"  take <item>, get, pick up     pick something up",
+		"  drop <item>, put down         put something down",
+		"  inventory, i                  list what you're carrying",
+		"  examine <item>, x             look closely at something",
+		"  read <item>                   read writing on something",
+		"  save [file], load [file]      save or restore the game",
+		"  help, ?                       show this list",
+		"  quit, q                       leave the game",
 	}
 	for _, line := range lines {
 		fmt.Fprintln(out, line)
@@ -270,7 +310,7 @@ func checkWin(w *world.World, out io.Writer) {
 	}
 	w.Won = true
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "You step back into the foyer with the coin warm in your hand.")
+	fmt.Fprintln(out, "You step back into the entryway with the coin warm in your hand.")
 	fmt.Fprintln(out, "The plaque was right. You have what you came for.")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "*** You win. ***")

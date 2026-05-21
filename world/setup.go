@@ -1,70 +1,90 @@
 package world
 
-// NewDemo builds the bundled adventure and returns a fresh World
-// positioned in the starting room.
 func NewDemo() *World {
 	w := &World{}
 
-	foyer := addRoom(w, "Foyer",
-		"A vaulted entry hall floored in cracked marble. Dust drifts in a single shaft of light from somewhere far above. A wide stone stair descends through a hole in the floor.",
-		false)
+	entryway := addRoom(w, "Entryway",
+		"A high entry hall paved in chipped slate. A shaft of light filters down through a cracked skylight far above. A wide arch opens to the north.",
+		0)
+	hallway := addRoom(w, "Hallway",
+		"A long corridor lined with faded portraits. Doors stand to the east and west, and a heavier door is set into the north wall.",
+		0)
 	library := addRoom(w, "Library",
-		"Floor to ceiling shelves, mostly empty. A few warped books lean against each other in the corner. A reading desk squats in the middle of the room.",
-		false)
+		"Floor to ceiling shelves lean inward over a single reading desk. The air is thick with old paper.",
+		0)
 	kitchen := addRoom(w, "Kitchen",
 		"A long flat-stone counter runs along one wall. The hearth is cold and lined with ash. Bare hooks dangle where utensils used to hang.",
-		false)
+		0)
+	study := addRoom(w, "Study",
+		"A panelled study dominated by a heavy oak desk. A square trapdoor is set into the floorboards beside it.",
+		0)
 	cellar := addRoom(w, "Cellar",
 		"Roughly hewn walls and a packed earth floor. The air smells of cold iron and damp stone.",
-		true)
+		RoomDark)
 
+	addItem(w, itemSpec{
+		Name:        "plaque",
+		Aliases:     []string{"sign", "wooden plaque"},
+		Description: "A weathered wooden plaque, fixed beside the arch.",
+		Location:    entryway,
+		Tags:        ItemReadable,
+		ReadText:    "Bring back what shines, from the dark below.",
+	})
 	brassKey := addItem(w, itemSpec{
 		Name:        "brass key",
 		Aliases:     []string{"key", "brass"},
 		Description: "A small brass key, worn smooth by use.",
 		Location:    library,
-		Takeable:    true,
+		Tags:        ItemTakeable,
+	})
+	addItem(w, itemSpec{
+		Name:        "torn note",
+		Aliases:     []string{"note", "paper"},
+		Description: "A scrap of paper, torn at one edge.",
+		Location:    library,
+		Tags:        ItemTakeable | ItemReadable,
+		ReadText:    "The door north of the hall takes brass.",
 	})
 	addItem(w, itemSpec{
 		Name:        "lantern",
 		Aliases:     []string{"lamp", "light"},
 		Description: "An oil lantern, its wick burning steady and low.",
 		Location:    kitchen,
-		Takeable:    true,
-		Lit:         true,
+		Tags:        ItemTakeable | ItemLit,
+	})
+	addItem(w, itemSpec{
+		Name:        "silver candle",
+		Aliases:     []string{"candle", "silver"},
+		Description: "A short silver candle, half burnt, smelling faintly of beeswax.",
+		Location:    study,
+		Tags:        ItemTakeable | ItemLit,
 	})
 	goldCoin := addItem(w, itemSpec{
 		Name:        "gold coin",
 		Aliases:     []string{"coin", "gold"},
 		Description: "A single gold coin. Heavier than it looks.",
 		Location:    cellar,
-		Takeable:    true,
-	})
-	addItem(w, itemSpec{
-		Name:        "plaque",
-		Aliases:     []string{"sign", "bronze plaque"},
-		Description: "A worn bronze plaque set into the wall beside the stair.",
-		Location:    foyer,
-		Readable:    true,
-		ReadText:    "Take what you came for and walk back out the way you came.",
+		Tags:        ItemTakeable,
 	})
 
-	addExitPair(w, foyer, North, library)
-	addExitPair(w, foyer, West, kitchen)
-	addLockedExit(w, foyer, Down, cellar, brassKey)
-	addExit(w, cellar, Up, foyer)
+	addExitPair(w, entryway, North, hallway)
+	addExitPair(w, hallway, East, library)
+	addExitPair(w, hallway, West, kitchen)
+	addLockedExit(w, hallway, North, study, brassKey)
+	addExit(w, study, South, hallway)
+	addExitPair(w, study, Down, cellar)
 
-	w.Player.Room = foyer
-	w.GoalRoom = foyer
+	w.Player.Room = entryway
+	w.GoalRoom = entryway
 	w.GoalItem = goldCoin
 	return w
 }
 
-func addRoom(w *World, name, description string, dark bool) RoomID {
+func addRoom(w *World, name, description string, tags RoomTag) RoomID {
 	id := RoomID(len(w.Rooms.Name))
 	w.Rooms.Name = append(w.Rooms.Name, name)
 	w.Rooms.Description = append(w.Rooms.Description, description)
-	w.Rooms.Dark = append(w.Rooms.Dark, dark)
+	w.Rooms.Tags = append(w.Rooms.Tags, tags)
 	return id
 }
 
@@ -73,22 +93,23 @@ type itemSpec struct {
 	Aliases     []string
 	Description string
 	Location    RoomID
-	Takeable    bool
-	Readable    bool
+	Tags        ItemTag
 	ReadText    string
-	Lit         bool
 }
 
 func addItem(w *World, spec itemSpec) ItemID {
 	id := ItemID(len(w.Items.Name))
 	w.Items.Name = append(w.Items.Name, spec.Name)
 	w.Items.Description = append(w.Items.Description, spec.Description)
-	w.Items.Aliases = append(w.Items.Aliases, spec.Aliases)
 	w.Items.Location = append(w.Items.Location, spec.Location)
-	w.Items.Takeable = append(w.Items.Takeable, spec.Takeable)
-	w.Items.Readable = append(w.Items.Readable, spec.Readable)
+	w.Items.Tags = append(w.Items.Tags, spec.Tags)
 	w.Items.ReadText = append(w.Items.ReadText, spec.ReadText)
-	w.Items.Lit = append(w.Items.Lit, spec.Lit)
+
+	if len(w.Items.AliasStart) == 0 {
+		w.Items.AliasStart = append(w.Items.AliasStart, 0)
+	}
+	w.Items.AliasFlat = append(w.Items.AliasFlat, spec.Aliases...)
+	w.Items.AliasStart = append(w.Items.AliasStart, int32(len(w.Items.AliasFlat)))
 	return id
 }
 

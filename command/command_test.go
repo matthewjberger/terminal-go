@@ -2,6 +2,8 @@ package command_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,14 +18,15 @@ func run(w *world.World, line string) string {
 	return buf.String()
 }
 
-func TestLockedExitRequiresKey(t *testing.T) {
+func TestLockedDoorRequiresKey(t *testing.T) {
 	w := world.NewDemo()
-	out := run(w, "down")
+	run(w, "north")
+	out := run(w, "north")
 	if !strings.Contains(out, "locked") {
-		t.Fatalf("going down without key should mention being locked, got:\n%s", out)
+		t.Fatalf("going north of hallway without key should mention locked, got:\n%s", out)
 	}
-	if w.Player.Room != w.GoalRoom {
-		t.Fatalf("player should not have moved; room = %d", w.Player.Room)
+	if w.Rooms.Name[w.Player.Room] != "Hallway" {
+		t.Fatalf("player should still be in hallway, got %s", w.Rooms.Name[w.Player.Room])
 	}
 }
 
@@ -31,14 +34,18 @@ func TestWalkthroughWins(t *testing.T) {
 	w := world.NewDemo()
 	steps := []string{
 		"north",
+		"east",
 		"take brass key",
-		"south",
+		"west",
 		"west",
 		"take lantern",
 		"east",
+		"north",
 		"down",
 		"take gold coin",
 		"up",
+		"south",
+		"south",
 	}
 	var buf bytes.Buffer
 	for _, step := range steps {
@@ -56,8 +63,10 @@ func TestWalkthroughWins(t *testing.T) {
 func TestDarkCellarBlocksTake(t *testing.T) {
 	w := world.NewDemo()
 	run(w, "north")
+	run(w, "east")
 	run(w, "take brass key")
-	run(w, "south")
+	run(w, "west")
+	run(w, "north")
 	run(w, "down")
 	out := run(w, "take gold coin")
 	if !strings.Contains(out, "dark") {
@@ -71,6 +80,7 @@ func TestDarkCellarBlocksTake(t *testing.T) {
 func TestExamineUsesAliases(t *testing.T) {
 	w := world.NewDemo()
 	run(w, "north")
+	run(w, "east")
 	out := run(w, "examine key")
 	if !strings.Contains(out, "brass") {
 		t.Fatalf("examine key should describe the brass key, got:\n%s", out)
@@ -80,8 +90,10 @@ func TestExamineUsesAliases(t *testing.T) {
 func TestExamineInventoryItemInTheDark(t *testing.T) {
 	w := world.NewDemo()
 	run(w, "north")
+	run(w, "east")
 	run(w, "take brass key")
-	run(w, "south")
+	run(w, "west")
+	run(w, "north")
 	run(w, "down")
 	out := run(w, "examine brass key")
 	if !strings.Contains(out, "brass") {
@@ -93,14 +105,31 @@ func TestExamineInventoryItemInTheDark(t *testing.T) {
 	}
 }
 
+func TestSilverCandleLightsTheCellar(t *testing.T) {
+	w := world.NewDemo()
+	run(w, "north")
+	run(w, "east")
+	run(w, "take brass key")
+	run(w, "west")
+	run(w, "north")
+	run(w, "take silver candle")
+	run(w, "down")
+	out := run(w, "take gold coin")
+	if !world.IsCarrying(w, "gold coin") {
+		t.Fatalf("silver candle should light the cellar; output:\n%s", out)
+	}
+}
+
 func TestDroppedLanternStillLightsTheRoom(t *testing.T) {
 	w := world.NewDemo()
 	run(w, "north")
+	run(w, "east")
 	run(w, "take brass key")
-	run(w, "south")
+	run(w, "west")
 	run(w, "west")
 	run(w, "take lantern")
 	run(w, "east")
+	run(w, "north")
 	run(w, "down")
 	run(w, "drop lantern")
 	out := run(w, "take gold coin")
@@ -116,6 +145,7 @@ func TestDroppedLanternStillLightsTheRoom(t *testing.T) {
 func TestPickUpAndPutDownAliases(t *testing.T) {
 	w := world.NewDemo()
 	run(w, "north")
+	run(w, "east")
 	run(w, "pick up brass key")
 	if !world.IsCarrying(w, "brass key") {
 		t.Fatal("pick up brass key should have taken the brass key")
@@ -123,5 +153,35 @@ func TestPickUpAndPutDownAliases(t *testing.T) {
 	run(w, "put down brass key")
 	if world.IsCarrying(w, "brass key") {
 		t.Fatal("put down brass key should have dropped the brass key")
+	}
+}
+
+func TestSaveAndLoadCommands(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.save")
+
+	w := world.NewDemo()
+	run(w, "north")
+	run(w, "east")
+	run(w, "take brass key")
+	out := run(w, "save "+path)
+	if !strings.Contains(out, "saved") {
+		t.Fatalf("save should report success, got:\n%s", out)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("save file should exist: %v", err)
+	}
+
+	w2 := world.NewDemo()
+	out = run(w2, "load "+path)
+	if !strings.Contains(out, "restored") {
+		t.Fatalf("load should report success, got:\n%s", out)
+	}
+	if !world.IsCarrying(w2, "brass key") {
+		t.Fatal("loaded world should have the brass key in inventory")
+	}
+	if w2.Rooms.Name[w2.Player.Room] != "Library" {
+		t.Fatalf("loaded world should place player in library, got %s", w2.Rooms.Name[w2.Player.Room])
 	}
 }

@@ -4,21 +4,12 @@ package parse
 
 import "strings"
 
-// Token is the result of tokenizing one input line. Verb is
-// lowercased and normalized through the alias table (so "n",
-// "look", "x", "i" all reduce to canonical verbs). Args is the
-// remaining words with articles and prepositions stripped.
-// Object is Args joined by a single space.
 type Token struct {
 	Verb   string
 	Args   []string
 	Object string
 }
 
-// Tokenize lowercases the input, splits on whitespace, normalizes
-// the verb (including two-word phrases like "pick up" and "put
-// down"), and strips filler words ("a", "an", "the", "at", "on",
-// "in", "to") from the remaining arguments.
 func Tokenize(line string) Token {
 	fields := strings.Fields(strings.ToLower(line))
 	if len(fields) == 0 {
