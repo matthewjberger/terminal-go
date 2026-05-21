@@ -74,7 +74,7 @@ func NewDemo() *World {
 	addExit(w, study, South, hallway)
 	addExitPair(w, study, Down, cellar)
 
-	w.Player.Room = entryway
+	w.PlayerRoom = entryway
 	w.GoalRoom = entryway
 	w.GoalItem = goldCoin
 	return w

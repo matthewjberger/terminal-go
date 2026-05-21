@@ -76,7 +76,7 @@ func TestTokenizeTwoWordVerbs(t *testing.T) {
 	}
 }
 
-func TestTokenizeRawArgsPreserveCase(t *testing.T) {
+func TestTokenizeRawObjectPreserveCase(t *testing.T) {
 	got := parse.Tokenize("save MyGame.save")
 	if got.Verb != "save" {
 		t.Errorf("Verb = %q, want %q", got.Verb, "save")

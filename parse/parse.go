@@ -6,14 +6,13 @@ import "strings"
 
 // Token is the result of parsing one input line. Verb is the
 // normalized lowercased canonical verb. Args / Object are
-// lowercased for matching against item names. RawArgs /
-// RawObject preserve the original case for things like
-// filenames passed to save/load.
+// lowercased for matching against item names. RawObject
+// preserves the original case for things like filenames passed
+// to save/load.
 type Token struct {
 	Verb      string
 	Args      []string
 	Object    string
-	RawArgs   []string
 	RawObject string
 }
 
@@ -29,20 +28,19 @@ func Tokenize(line string) Token {
 	verb, consumed := normalizeVerb(lower)
 
 	args := make([]string, 0, len(raw)-consumed)
-	rawArgs := make([]string, 0, len(raw)-consumed)
+	var rawParts []string
 	for i := consumed; i < len(raw); i++ {
 		if isFiller(lower[i]) {
 			continue
 		}
 		args = append(args, lower[i])
-		rawArgs = append(rawArgs, raw[i])
+		rawParts = append(rawParts, raw[i])
 	}
 	return Token{
 		Verb:      verb,
 		Args:      args,
 		Object:    strings.Join(args, " "),
-		RawArgs:   rawArgs,
-		RawObject: strings.Join(rawArgs, " "),
+		RawObject: strings.Join(rawParts, " "),
 	}
 }
 

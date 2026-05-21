@@ -23,7 +23,7 @@ func run(in io.Reader, out io.Writer) error {
 	w := world.NewDemo()
 
 	fmt.Fprintln(out, "terminal-go zork. Type 'help' for verbs, 'save' / 'load' to persist, 'quit' to leave.")
-	command.DescribeRoom(w, w.Player.Room, out)
+	command.DescribeRoom(w, w.PlayerRoom, out)
 
 	scanner := bufio.NewScanner(in)
 	for !w.Quit && !w.Won {

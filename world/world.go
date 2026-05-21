@@ -71,17 +71,14 @@ type Exit struct {
 	KeyItem ItemID
 }
 
-type Player struct {
-	Room RoomID
-}
-
 type World struct {
 	Version int32
 
-	Rooms  Rooms
-	Items  Items
-	Exits  []Exit
-	Player Player
+	Rooms Rooms
+	Items Items
+	Exits []Exit
+
+	PlayerRoom RoomID
 
 	GoalRoom RoomID
 	GoalItem ItemID
@@ -205,16 +202,6 @@ func ExitFrom(w *World, room RoomID, dir Direction) (Exit, int, bool) {
 		}
 	}
 	return Exit{}, -1, false
-}
-
-func ExitsFrom(w *World, room RoomID) []Exit {
-	var out []Exit
-	for _, exit := range w.Exits {
-		if exit.From == room {
-			out = append(out, exit)
-		}
-	}
-	return out
 }
 
 // IsDark assumes room is the player's current room; the inventory

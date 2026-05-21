@@ -27,7 +27,7 @@ func Run(w *world.World, tok parse.Token, out io.Writer) {
 	switch tok.Verb {
 	case "look":
 		if tok.Object == "" {
-			DescribeRoom(w, w.Player.Room, out)
+			DescribeRoom(w, w.PlayerRoom, out)
 		} else {
 			examine(w, tok, out)
 		}
@@ -89,14 +89,15 @@ func writeItemList(w *world.World, room world.RoomID, out io.Writer) {
 }
 
 func writeExitList(w *world.World, room world.RoomID, out io.Writer) {
-	exits := world.ExitsFrom(w, room)
-	if len(exits) == 0 {
+	var parts []string
+	for _, exit := range w.Exits {
+		if exit.From == room {
+			parts = append(parts, world.DirectionName(exit.Dir))
+		}
+	}
+	if len(parts) == 0 {
 		fmt.Fprintln(out, "There are no obvious exits.")
 		return
-	}
-	parts := make([]string, 0, len(exits))
-	for _, exit := range exits {
-		parts = append(parts, world.DirectionName(exit.Dir))
 	}
 	sort.Strings(parts)
 	fmt.Fprintf(out, "Exits: %s.\n", strings.Join(parts, ", "))
@@ -116,7 +117,7 @@ func goCmd(w *world.World, tok parse.Token, out io.Writer) {
 }
 
 func move(w *world.World, dir world.Direction, out io.Writer) {
-	exit, index, ok := world.ExitFrom(w, w.Player.Room, dir)
+	exit, index, ok := world.ExitFrom(w, w.PlayerRoom, dir)
 	if !ok {
 		fmt.Fprintln(out, "You can't go that way.")
 		return
@@ -137,7 +138,7 @@ func move(w *world.World, dir world.Direction, out io.Writer) {
 		}
 		fmt.Fprintf(out, "You unlock the way with the %s.\n", keyName)
 	}
-	w.Player.Room = exit.To
+	w.PlayerRoom = exit.To
 	DescribeRoom(w, exit.To, out)
 }
 
@@ -146,11 +147,11 @@ func take(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "Take what?")
 		return
 	}
-	if world.IsDark(w, w.Player.Room) {
+	if world.IsDark(w, w.PlayerRoom) {
 		fmt.Fprintln(out, "It is too dark to see what you're grabbing for.")
 		return
 	}
-	id := world.FindItemInRoom(w, w.Player.Room, tok.Object)
+	id := world.FindItemInRoom(w, w.PlayerRoom, tok.Object)
 	if id == world.InvalidItem {
 		if world.FindItemInInventory(w, tok.Object) != world.InvalidItem {
 			fmt.Fprintln(out, "You're already carrying it.")
@@ -177,7 +178,7 @@ func drop(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "You aren't carrying that.")
 		return
 	}
-	w.Items.Location[id] = w.Player.Room
+	w.Items.Location[id] = w.PlayerRoom
 	fmt.Fprintf(out, "Dropped: %s.\n", w.Items.Name[id])
 }
 
@@ -203,11 +204,11 @@ func examine(w *world.World, tok parse.Token, out io.Writer) {
 	}
 	id := world.FindItemInInventory(w, tok.Object)
 	if id == world.InvalidItem {
-		if world.IsDark(w, w.Player.Room) {
+		if world.IsDark(w, w.PlayerRoom) {
 			fmt.Fprintln(out, "It is too dark to make out any detail.")
 			return
 		}
-		id = world.FindItemInRoom(w, w.Player.Room, tok.Object)
+		id = world.FindItemInRoom(w, w.PlayerRoom, tok.Object)
 	}
 	if id == world.InvalidItem {
 		fmt.Fprintln(out, "You don't see that here.")
@@ -223,11 +224,11 @@ func read(w *world.World, tok parse.Token, out io.Writer) {
 	}
 	id := world.FindItemInInventory(w, tok.Object)
 	if id == world.InvalidItem {
-		if world.IsDark(w, w.Player.Room) {
+		if world.IsDark(w, w.PlayerRoom) {
 			fmt.Fprintln(out, "It is too dark to read.")
 			return
 		}
-		id = world.FindItemInRoom(w, w.Player.Room, tok.Object)
+		id = world.FindItemInRoom(w, w.PlayerRoom, tok.Object)
 	}
 	if id == world.InvalidItem {
 		fmt.Fprintln(out, "You don't see that here.")
@@ -280,7 +281,7 @@ func load(w *world.World, tok parse.Token, out io.Writer) {
 		fmt.Fprintln(out, "(This save is from a completed run.)")
 		return
 	}
-	DescribeRoom(w, w.Player.Room, out)
+	DescribeRoom(w, w.PlayerRoom, out)
 }
 
 func help(out io.Writer) {
@@ -306,7 +307,7 @@ func checkWin(w *world.World, out io.Writer) {
 	if w.Won || w.Quit {
 		return
 	}
-	if w.Player.Room != w.GoalRoom {
+	if w.PlayerRoom != w.GoalRoom {
 		return
 	}
 	if w.Items.Location[w.GoalItem] != world.InventoryRoom {

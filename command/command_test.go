@@ -25,8 +25,8 @@ func TestLockedDoorRequiresKey(t *testing.T) {
 	if !strings.Contains(out, "locked") {
 		t.Fatalf("going north of hallway without key should mention locked, got:\n%s", out)
 	}
-	if w.Rooms.Name[w.Player.Room] != "Hallway" {
-		t.Fatalf("player should still be in hallway, got %s", w.Rooms.Name[w.Player.Room])
+	if w.Rooms.Name[w.PlayerRoom] != "Hallway" {
+		t.Fatalf("player should still be in hallway, got %s", w.Rooms.Name[w.PlayerRoom])
 	}
 }
 
@@ -181,8 +181,8 @@ func TestSaveAndLoadCommands(t *testing.T) {
 	if !world.IsCarrying(w2, "brass key") {
 		t.Fatal("loaded world should have the brass key in inventory")
 	}
-	if w2.Rooms.Name[w2.Player.Room] != "Library" {
-		t.Fatalf("loaded world should place player in library, got %s", w2.Rooms.Name[w2.Player.Room])
+	if w2.Rooms.Name[w2.PlayerRoom] != "Library" {
+		t.Fatalf("loaded world should place player in library, got %s", w2.Rooms.Name[w2.PlayerRoom])
 	}
 }
 

@@ -16,7 +16,7 @@ func TestNewDemoShape(t *testing.T) {
 	if got := len(w.Items.Name); got != 6 {
 		t.Fatalf("items = %d, want 6", got)
 	}
-	if w.Player.Room != w.GoalRoom {
+	if w.PlayerRoom != w.GoalRoom {
 		t.Fatal("player should start in the goal room")
 	}
 
@@ -93,7 +93,7 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 
 	lantern := world.FindItemInRoom(w, roomByName(t, w, "Kitchen"), "lantern")
 	w.Items.Location[lantern] = world.InventoryRoom
-	w.Player.Room = roomByName(t, w, "Cellar")
+	w.PlayerRoom = roomByName(t, w, "Cellar")
 
 	var buf bytes.Buffer
 	if err := world.Encode(w, &buf); err != nil {
@@ -107,8 +107,8 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	if restored.Version != world.SaveVersion {
 		t.Errorf("Version = %d, want %d", restored.Version, world.SaveVersion)
 	}
-	if restored.Player.Room != w.Player.Room {
-		t.Errorf("Player.Room = %d, want %d", restored.Player.Room, w.Player.Room)
+	if restored.PlayerRoom != w.PlayerRoom {
+		t.Errorf("PlayerRoom = %d, want %d", restored.PlayerRoom, w.PlayerRoom)
 	}
 	if restored.Items.Location[lantern] != world.InventoryRoom {
 		t.Error("lantern location lost in save/load")
